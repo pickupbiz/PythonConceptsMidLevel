@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mid-level Python Interview – Q&amp;A</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem auto; max-width: 900px; line-height: 1.6; color: #222; }
+    h1, h2, h3 { color: #1a3a6b; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.6rem; margin-top: 2rem; }
+    h3 { font-size: 1.3rem; margin-top: 1.5rem; }
+    code { background: #f5f5f5; padding: 0.1rem 0.25rem; border-radius: 3px; font-size: 0.95em; }
+    hr { margin: 2rem 0; border: none; border-top: 1px solid #ddd; }
+    ul { padding-left: 1.5rem; }
+    li { margin: 0.25rem 0; }
+    strong { color: #000; }
+    .question { margin-top: 1rem; }
+    .answer { margin-left: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Mid-level Python Interview – Q&amp;A (Project-Based)</h1>
+  <p>This page contains <strong>interview-style questions and answers</strong> based on the <code>PythonConceptsMidLevel</code> project. Use it to practise explaining real code and design decisions.</p>
+
+  <hr />
+
+  <h2>1. Overall Design &amp; Architecture</h2>
+
+  <div class="question"><strong>Q1.1 – Why is the project split into <code>models</code>, <code>storage</code>, <code>services</code>, and <code>cli</code> instead of using a single script?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: This follows separation of concerns and layered architecture:</p>
+    <ul>
+      <li><code>models.py</code> holds only domain data structures (e.g. <code>Task</code>, <code>TaskStatus</code>).</li>
+      <li><code>storage.py</code> is responsible for persistence (JSON file I/O).</li>
+      <li><code>services.py</code> contains business logic and rules (create, update, validate tasks).</li>
+      <li><code>cli.py</code> handles user interaction and argument parsing.</li>
+    </ul>
+    <p>This structure makes the project more testable, easier to extend, and closer to real-world applications.</p>
+  </div>
+
+  <div class="question"><strong>Q1.2 – How does the dependency flow between modules work?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: The flow is one-directional:</p>
+    <ul>
+      <li><code>models</code> has no project-internal dependencies.</li>
+      <li><code>storage</code> depends on <code>models</code>.</li>
+      <li><code>services</code> depends on both <code>models</code> and <code>storage</code>.</li>
+      <li><code>cli</code> depends on <code>services</code> (and indirectly on <code>storage</code> and <code>models</code>).</li>
+    </ul>
+    <p>Higher layers never depend on lower-level implementation details directly (e.g. CLI does not work with JSON or files).</p>
+  </div>
+
+  <hr />
+
+  <h2>2. Dataclasses &amp; Enums</h2>
+
+  <div class="question"><strong>Q2.1 – What advantages does <code>@dataclass</code> provide for the <code>Task</code> model?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>@dataclass</code> automatically generates boilerplate like <code>__init__</code>, <code>__repr__</code>, and <code>__eq__</code>, while supporting type hints and default values. This is ideal for simple “data holder” classes like <code>Task</code>, which mainly store attributes such as <code>title</code>, <code>description</code>, <code>status</code>, and timestamps.</p>
+  </div>
+
+  <div class="question"><strong>Q2.2 – Why is <code>Task</code> defined with <code>slots=True</code> and what are the trade-offs?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>slots=True</code>:</p>
+    <ul>
+      <li>Reduces memory usage by avoiding per-instance <code>__dict__</code>.</li>
+      <li>Speeds up attribute access.</li>
+      <li>Prevents adding new attributes dynamically, which can catch some bugs early.</li>
+    </ul>
+    <p>Trade-offs include slightly more complexity and limitations around inheritance and some libraries that rely on <code>__dict__</code>.</p>
+  </div>
+
+  <div class="question"><strong>Q2.3 – Why does <code>TaskStatus</code> inherit from both <code>str</code> and <code>Enum</code>?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: Inheriting from <code>str</code> and <code>Enum</code> gives:</p>
+    <ul>
+      <li>Type-safe enum semantics (limited set of valid values).</li>
+      <li>String behaviour for interoperability: values can be easily serialized to JSON and used as CLI choices.</li>
+    </ul>
+    <p>This is useful here because statuses are stored in JSON and passed via string-based CLI arguments.</p>
+  </div>
+
+  <hr />
+
+  <h2>3. Type Hints &amp; Static Analysis</h2>
+
+  <div class="question"><strong>Q3.1 – How do type hints improve this codebase, even though Python doesn’t enforce them at runtime?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: Type hints:</p>
+    <ul>
+      <li>Clarify function signatures and expected types, improving readability.</li>
+      <li>Help IDEs provide better autocomplete and inline documentation.</li>
+      <li>Allow static analysis tools to catch type mismatches early.</li>
+    </ul>
+    <p>For example, <code>list_tasks(self, status: Optional[TaskStatus] = None) -&gt; List[Task]</code> documents exactly what callers can pass and receive.</p>
+  </div>
+
+  <div class="question"><strong>Q3.2 – How would you introduce static type checking (like mypy) into this project?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: Steps might include:</p>
+    <ul>
+      <li>Add <code>mypy</code> to dev dependencies.</li>
+      <li>Configure <code>mypy.ini</code> or <code>pyproject.toml</code> to point at the <code>app</code> package.</li>
+      <li>Run <code>mypy app</code> in CI or as a pre-commit hook.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>4. Error Handling &amp; Custom Exceptions</h2>
+
+  <div class="question"><strong>Q4.1 – Why define custom exceptions such as <code>StorageError</code> and <code>TaskNotFoundError</code>?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: Custom exceptions provide:</p>
+    <ul>
+      <li>A clearer domain language for failures (e.g. “task not found”).</li>
+      <li>Better separation between layers: storage wraps I/O/JSON problems in <code>StorageError</code>, and services translate repository issues into <code>TaskNotFoundError</code>.</li>
+    </ul>
+    <p>This lets the CLI catch and display user-friendly messages without needing to know low-level details.</p>
+  </div>
+
+  <div class="question"><strong>Q4.2 – How does the CLI layer handle different error types?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: In <code>cli.py</code>, the <code>main</code> function:</p>
+    <ul>
+      <li>Wraps command handling in <code>try/except</code> blocks.</li>
+      <li>Catches <code>TaskNotFoundError</code>, <code>StorageError</code>, and <code>ValueError</code>.</li>
+      <li>Prints descriptive, color-coded error messages using <code>rich</code>.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>5. Repository Pattern &amp; Persistence</h2>
+
+  <div class="question"><strong>Q5.1 – What is the repository pattern, and how is it implemented here?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: The repository pattern abstracts data access behind a consistent API. Here:</p>
+    <ul>
+      <li><code>JsonFileTaskRepository</code> in <code>storage.py</code> exposes methods like <code>list_tasks</code>, <code>get_by_id</code>, <code>add</code>, <code>update</code>, and <code>delete</code>.</li>
+      <li>The repository hides JSON serialization, filesystem access, and low-level errors.</li>
+    </ul>
+    <p><code>TaskService</code> relies only on this API and doesn’t care where data comes from.</p>
+  </div>
+
+  <div class="question"><strong>Q5.2 – How could you swap JSON storage for a database without changing the CLI?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: You would:</p>
+    <ul>
+      <li>Implement a new repository class (e.g. <code>SqlTaskRepository</code>) with the same method signatures.</li>
+      <li>Change <code>build_service</code> in <code>cli.py</code> (or configuration) to construct the new repository instead of <code>JsonFileTaskRepository</code>.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>6. Dependency Injection &amp; Testability</h2>
+
+  <div class="question"><strong>Q6.1 – How is dependency injection used in <code>TaskService</code>?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>TaskService</code> accepts its repository via the constructor (<code>__init__(self, repository)</code>) instead of constructing it internally. This allows:</p>
+    <ul>
+      <li>Centralized wiring of dependencies in <code>build_service</code>.</li>
+      <li>Easy testing with fake or in-memory repositories.</li>
+    </ul>
+  </div>
+
+  <div class="question"><strong>Q6.2 – How would you unit test <code>TaskService</code> methods like <code>create_task</code> or <code>change_status</code>?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: You could:</p>
+    <ul>
+      <li>Create a fake repository class with an in-memory list of tasks.</li>
+      <li>Inject this fake into <code>TaskService</code>.</li>
+      <li>Call <code>create_task</code> and assert tasks were added and validated.</li>
+      <li>Call <code>change_status</code> and assert status and timestamps are updated correctly.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>7. Context Managers &amp; Filesystem</h2>
+
+  <div class="question"><strong>Q7.1 – What problem does the <code>_locked_file</code> context manager in <code>storage.py</code> solve?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>_locked_file</code>:</p>
+    <ul>
+      <li>Ensures the parent directory exists before writing.</li>
+      <li>Acts as a single place to manage file access pre/post conditions (and could later add real locking).</li>
+    </ul>
+    <p>It shows how to encapsulate resource management using <code>@contextmanager</code>.</p>
+  </div>
+
+  <div class="question"><strong>Q7.2 – Why is <code>pathlib.Path</code> preferred over string paths in this project?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>Path</code>:</p>
+    <ul>
+      <li>Provides OS-independent behaviour.</li>
+      <li>Offers convenient methods like <code>read_text</code>, <code>write_text</code>, <code>mkdir</code>, and <code>/</code> for path joining.</li>
+      <li>Makes code more readable and less error-prone than manual string concatenation.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>8. CLI with <code>argparse</code> and <code>rich</code></h2>
+
+  <div class="question"><strong>Q8.1 – How does the CLI map subcommands to business operations?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>_parse_args</code> in <code>cli.py</code>:</p>
+    <ul>
+      <li>Creates subparsers for commands: <code>create</code>, <code>list</code>, <code>status</code>, <code>delete</code>.</li>
+      <li>Each subparser defines its own arguments.</li>
+    </ul>
+    <p><code>main</code> then checks <code>args.command</code> and calls corresponding <code>TaskService</code> methods.</p>
+  </div>
+
+  <div class="question"><strong>Q8.2 – What benefits does <code>rich</code> bring to the CLI, and why might this matter in an interview?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>rich</code>:</p>
+    <ul>
+      <li>Produces colored, nicely formatted output (e.g. tables for <code>list</code>).</li>
+      <li>Improves UX and demonstrates familiarity with third-party libraries.</li>
+      <li>Encourages clean separation between data and presentation.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>9. Immutability &amp; Data Updates</h2>
+
+  <div class="question"><strong>Q9.1 – What does <code>dataclasses.replace</code> do in <code>update_details</code>, and why use it?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>dataclasses.replace(task, title=..., description=...)</code>:</p>
+    <ul>
+      <li>Creates a new <code>Task</code> instance copying all fields except those overridden.</li>
+      <li>Encourages an immutable-update style, reducing side effects.</li>
+    </ul>
+  </div>
+
+  <div class="question"><strong>Q9.2 – When would you choose immutable-style updates in production systems?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: Scenarios include:</p>
+    <ul>
+      <li>Functional or event-sourced architectures.</li>
+      <li>Concurrency-heavy code with shared state.</li>
+      <li>Systems where you want to easily roll back or compare versions.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>10. Entry Points &amp; Packaging</h2>
+
+  <div class="question"><strong>Q10.1 – What is the role of <code>app/main.py</code>, and how is it used with <code>python -m</code>?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: <code>app/main.py</code> provides:</p>
+    <ul>
+      <li><code>run()</code> as a single entry point.</li>
+      <li>An <code>if __name__ == "__main__": run()</code> block.</li>
+    </ul>
+    <p>Running <code>python -m app</code> executes the package as a module and ultimately calls <code>run()</code>, which invokes the CLI <code>main</code> function.</p>
+  </div>
+
+  <div class="question"><strong>Q10.2 – How would you expose this CLI as a <code>console_script</code> in a real package?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: In <code>pyproject.toml</code> or <code>setup.cfg</code>, you’d define something like:</p>
+    <ul>
+      <li><code>console_scripts = {"taskmgr": "app.main:run"}</code></li>
+    </ul>
+    <p>After installation, users could run <code>taskmgr</code> from any shell.</p>
+  </div>
+
+  <hr />
+
+  <h2>11. Behaviour &amp; Extensions</h2>
+
+  <div class="question"><strong>Q11.1 – If you wanted to add a priority field to <code>Task</code>, what layers would you need to change?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: You’d:</p>
+    <ul>
+      <li>Add <code>priority</code> to <code>Task</code> in <code>models.py</code>.</li>
+      <li>Update serialization/deserialization logic in <code>storage.py</code>.</li>
+      <li>Extend <code>TaskService</code> to validate or default priority.</li>
+      <li>Update <code>cli.py</code> to accept and display priority.</li>
+    </ul>
+  </div>
+
+  <div class="question"><strong>Q11.2 – How could you extend this app to support tags or due dates, and what would you focus on when designing that?</strong></div>
+  <div class="answer">
+    <p><strong>A</strong>: Similar steps: update the model, storage, services, and CLI. Focus on:</p>
+    <ul>
+      <li>Choosing data structures (e.g. list of strings for tags, <code>datetime</code> for due dates).</li>
+      <li>Ensuring backward compatibility for existing JSON.</li>
+      <li>Providing clear CLI options and consistent filtering behaviour.</li>
+    </ul>
+  </div>
+</body>
+</html>
+

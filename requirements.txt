@@ -1,0 +1,5 @@
+#
+# Minimal deps; everything else is from the standard library.
+# You can add more as you extend the project.
+#
+rich==13.9.4

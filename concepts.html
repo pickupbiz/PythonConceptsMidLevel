@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PythonConceptsMidLevel – Concept Guide</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem auto; max-width: 900px; line-height: 1.6; color: #222; }
+    h1, h2, h3 { color: #1a3a6b; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.6rem; margin-top: 2rem; }
+    h3 { font-size: 1.3rem; margin-top: 1.5rem; }
+    code { background: #f5f5f5; padding: 0.1rem 0.25rem; border-radius: 3px; font-size: 0.95em; }
+    pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    hr { margin: 2rem 0; border: none; border-top: 1px solid #ddd; }
+    ul { padding-left: 1.5rem; }
+    li { margin: 0.25rem 0; }
+    strong { color: #000; }
+  </style>
+</head>
+<body>
+  <h1>PythonConceptsMidLevel – Concept Guide</h1>
+  <p>This document explains the <strong>mid-level Python concepts</strong> demonstrated in this project and points you to concrete examples in the code.</p>
+
+  <hr />
+
+  <h2>1. Project structure &amp; modular design</h2>
+  <p><strong>Concept</strong>: Splitting code into small, focused modules and packages instead of one big script.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/__init__.py</code> – defines the package and documents its purpose.</li>
+    <li><code>app/models.py</code> – domain objects only.</li>
+    <li><code>app/storage.py</code> – persistence / I/O only.</li>
+    <li><code>app/services.py</code> – business rules and orchestration.</li>
+    <li><code>app/cli.py</code> – user interface and argument parsing.</li>
+  </ul>
+  <p><strong>Key idea</strong>: Each module has a single responsibility; higher-level layers depend on lower ones (CLI → service → storage → filesystem).</p>
+
+  <hr />
+
+  <h2>2. Dataclasses and <code>slots</code></h2>
+  <p><strong>Concept</strong>: Using <code>@dataclass</code> to reduce boilerplate for simple data-carrying classes.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/models.py</code> – <code>Task</code> declared as <code>@dataclass(slots=True)</code>.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Automatic <code>__init__</code>, <code>__repr__</code>, <code>__eq__</code>.</li>
+    <li>Default values and <code>default_factory</code> for timestamps.</li>
+    <li><code>slots=True</code> prevents adding new attributes dynamically and uses a more compact layout.</li>
+  </ul>
+
+  <hr />
+
+  <h2>3. Enums for limited choices</h2>
+  <p><strong>Concept</strong>: <code>Enum</code> restricts values to a fixed set, making code safer and more self-documenting.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/models.py</code> – <code>TaskStatus(str, Enum)</code> with values <code>todo</code>, <code>in_progress</code>, <code>done</code>.</li>
+    <li><code>app/cli.py</code> – CLI arguments (<code>--status</code>) use these enum values.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li><code>str, Enum</code> mixin lets enum values behave like strings (useful in JSON, CLI).</li>
+    <li>Central place for allowed values instead of scattered string literals.</li>
+  </ul>
+
+  <hr />
+
+  <h2>4. Type hints and static thinking</h2>
+  <p><strong>Concept</strong>: Adding type hints for better readability, editor support, and static analysis.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li>All modules use type hints: <code>Optional</code>, <code>List</code>, custom types (<code>Task</code>, <code>TaskStatus</code>), and return types.</li>
+    <li><code>app/services.py</code> – explicit return types for <code>create_task</code>, <code>list_tasks</code>, etc.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Do not change runtime behaviour, but:</li>
+    <li>Make contracts clear.</li>
+    <li>Help tools (pylance, mypy, IDEs) catch mistakes earlier.</li>
+  </ul>
+
+  <hr />
+
+  <h2>5. Custom exceptions and error translation</h2>
+  <p><strong>Concept</strong>: Raise <strong>domain-specific</strong> exceptions instead of letting low-level errors leak.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/storage.py</code> – <code>StorageError</code> wraps I/O and JSON errors.</li>
+    <li><code>app/services.py</code> – <code>TaskNotFoundError</code> for missing IDs.</li>
+    <li><code>app/cli.py</code> – catches <code>StorageError</code>, <code>TaskNotFoundError</code>, <code>ValueError</code> and prints friendly messages.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Storage layer hides file/JSON details and exposes a simple error type.</li>
+    <li>Service converts repo errors into domain-level exceptions.</li>
+    <li>CLI is the only layer that formats text for users.</li>
+  </ul>
+
+  <hr />
+
+  <h2>6. Repository pattern &amp; separation of concerns</h2>
+  <p><strong>Concept</strong>: A repository acts as an abstraction around persistence (e.g. file, database, API).</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/storage.py</code> – <code>JsonFileTaskRepository</code> with <code>list_tasks</code>, <code>get_by_id</code>, <code>add</code>, <code>update</code>, <code>delete</code>.</li>
+    <li><code>app/services.py</code> – <code>TaskService</code> uses the repository.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Can swap implementations (e.g. DB) without changing business logic.</li>
+    <li>Service layer talks to an abstract API, not JSON/files directly.</li>
+  </ul>
+
+  <hr />
+
+  <h2>7. Dependency injection / composition</h2>
+  <p><strong>Concept</strong>: Passing dependencies in from the outside instead of creating them inside classes.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/services.py</code> – <code>TaskService.__init__(self, repository)</code>.</li>
+    <li><code>app/cli.py</code> – <code>build_service</code> constructs the repository and passes it in.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Easier to test (inject fakes).</li>
+    <li>More flexible configuration in one place.</li>
+  </ul>
+
+  <hr />
+
+  <h2>8. Context managers with <code>@contextmanager</code></h2>
+  <p><strong>Concept</strong>: Managing resource lifecycle with <code>with</code> blocks.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/storage.py</code> – <code>_locked_file</code> is a custom context manager.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Ensures parent directory exists.</li>
+    <li>Single place for locks and cleanup logic.</li>
+    <li>Encapsulates setup/teardown logic in a reusable way.</li>
+  </ul>
+
+  <hr />
+
+  <h2>9. Working with <code>pathlib</code> and the filesystem</h2>
+  <p><strong>Concept</strong>: Using <code>pathlib.Path</code> instead of raw strings for file paths.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/storage.py</code> – uses <code>Path.read_text</code> / <code>write_text</code>.</li>
+    <li><code>app/cli.py</code> – <code>build_service</code> builds default paths via <code>Path.cwd()</code>.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Cleaner, OS-independent path handling.</li>
+    <li>Configurable storage file via <code>--db</code>.</li>
+  </ul>
+
+  <hr />
+
+  <h2>10. Immutable updates with <code>dataclasses.replace</code></h2>
+  <p><strong>Concept</strong>: Creating modified copies instead of mutating objects in-place.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/services.py</code> – <code>update_details</code> uses <code>replace</code>.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Promotes a more functional style.</li>
+    <li>Helps avoid accidental mutation bugs.</li>
+  </ul>
+
+  <hr />
+
+  <h2>11. CLI design with <code>argparse</code></h2>
+  <p><strong>Concept</strong>: Building a structured command-line interface.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/cli.py</code> – defines global options and subcommands.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Subparsers provide a “git-like” multi-command interface.</li>
+    <li>Each subcommand has its own arguments.</li>
+    <li>Arguments map directly to service calls.</li>
+  </ul>
+
+  <hr />
+
+  <h2>12. Rich terminal output</h2>
+  <p><strong>Concept</strong>: Using third-party libraries to improve UX.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/cli.py</code> – uses <code>rich.Console</code> and <code>rich.Table</code>.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li>Separates data from presentation.</li>
+    <li>Makes CLI output more readable and professional.</li>
+  </ul>
+
+  <hr />
+
+  <h2>13. Entry points and <code>python -m</code> usage</h2>
+  <p><strong>Concept</strong>: Running a package as a module.</p>
+  <p><strong>Where</strong>:</p>
+  <ul>
+    <li><code>app/main.py</code> – defines <code>run()</code> and main guard.</li>
+  </ul>
+  <p><strong>Key ideas</strong>:</p>
+  <ul>
+    <li><code>python -m app</code> runs the package with proper import context.</li>
+    <li>Separates library code from entry point code.</li>
+  </ul>
+
+  <hr />
+
+  <h2>14. Suggested extensions for practice</h2>
+  <p>To deepen your understanding, try adding:</p>
+  <ul>
+    <li>New fields: priority, due date, tags on <code>Task</code>.</li>
+    <li>Filtering &amp; sorting: list tasks by priority or due date.</li>
+    <li>Another storage backend: e.g. SQLite-based repository.</li>
+    <li>Unit tests: for <code>TaskService</code> using a fake repository.</li>
+    <li>Decorators or logging: e.g. a decorator that logs service calls.</li>
+  </ul>
+  <p>Keep the same structure: models → storage → services → CLI to train thinking in layers and modules.</p>
+</body>
+</html>
+
